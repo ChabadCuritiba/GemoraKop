@@ -100,7 +100,9 @@ export async function generateGemoraReply(userMessage) {
   const model =
     provider === "grok"
       ? process.env.GROK_MODEL || process.env.XAI_MODEL || "grok-3-mini"
-      : process.env.GROQ_MODEL || "llama-3.1-70b-versatile";
+      : process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+
+  const groqFallbackModel = "llama-3.3-70b-versatile";
 
   try {
     const response = await fetch(endpoint, {
@@ -132,15 +134,64 @@ export async function generateGemoraReply(userMessage) {
       })
     });
 
+    let data;
     if (!response.ok) {
       const details = await response.text();
-      return {
-        status: 502,
-        body: { error: "Model request failed.", details }
-      };
+
+      // Auto-retry once on Groq model decommission errors.
+      if (
+        provider === "groq" &&
+        model !== groqFallbackModel &&
+        /model_decommissioned/i.test(details)
+      ) {
+        const retryResponse = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: groqFallbackModel,
+            temperature: 0.2,
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are Gemora Kop. You only answer questions about Gemora/Talmud and related classic mefarshim. If the user asks anything else, refuse briefly and ask for a Gemora question."
+              },
+              {
+                role: "system",
+                content: likelyGemora
+                  ? "The user message is likely Gemora-related. Answer directly and clearly."
+                  : "The user message may be off-topic. If it is not Gemora-related, refuse briefly."
+              },
+              {
+                role: "user",
+                content: message
+              }
+            ]
+          })
+        });
+
+        if (!retryResponse.ok) {
+          const retryDetails = await retryResponse.text();
+          return {
+            status: 502,
+            body: { error: "Model request failed.", details: retryDetails }
+          };
+        }
+
+        data = await retryResponse.json();
+      } else {
+        return {
+          status: 502,
+          body: { error: "Model request failed.", details }
+        };
+      }
+    } else {
+      data = await response.json();
     }
 
-    const data = await response.json();
     const reply =
       data?.choices?.[0]?.message?.content?.trim() ||
       "I can only answer Gemora-related questions.";
