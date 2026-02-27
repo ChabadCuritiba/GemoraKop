@@ -97,99 +97,92 @@ export async function generateGemoraReply(userMessage) {
     provider === "grok"
       ? "https://api.x.ai/v1/chat/completions"
       : "https://api.groq.com/openai/v1/chat/completions";
+  const deprecatedGroqModelMap = {
+    "llama-3.1-70b-versatile": "llama-3.3-70b-versatile",
+    "llama-3.1-70b-specdec": "llama-3.3-70b-versatile",
+    "llama3-70b-8192": "llama-3.3-70b-versatile",
+    "llama3-8b-8192": "llama-3.1-8b-instant"
+  };
+
+  const requestedGroqModel =
+    String(process.env.GROQ_MODEL || "llama-3.3-70b-versatile").trim() ||
+    "llama-3.3-70b-versatile";
+  const normalizedGroqModel =
+    deprecatedGroqModelMap[requestedGroqModel] || requestedGroqModel;
+
   const model =
     provider === "grok"
       ? process.env.GROK_MODEL || process.env.XAI_MODEL || "grok-3-mini"
-      : process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+      : normalizedGroqModel;
 
-  const groqFallbackModel = "llama-3.3-70b-versatile";
+  const messagePayload = [
+    {
+      role: "system",
+      content:
+        "You are Gemora Kop. You only answer questions about Gemora/Talmud and related classic mefarshim. If the user asks anything else, refuse briefly and ask for a Gemora question."
+    },
+    {
+      role: "system",
+      content: likelyGemora
+        ? "The user message is likely Gemora-related. Answer directly and clearly."
+        : "The user message may be off-topic. If it is not Gemora-related, refuse briefly."
+    },
+    {
+      role: "user",
+      content: message
+    }
+  ];
 
   try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are Gemora Kop. You only answer questions about Gemora/Talmud and related classic mefarshim. If the user asks anything else, refuse briefly and ask for a Gemora question."
-          },
-          {
-            role: "system",
-            content: likelyGemora
-              ? "The user message is likely Gemora-related. Answer directly and clearly."
-              : "The user message may be off-topic. If it is not Gemora-related, refuse briefly."
-          },
-          {
-            role: "user",
-            content: message
-          }
-        ]
-      })
-    });
+    const attemptModels =
+      provider === "groq"
+        ? Array.from(
+            new Set([model, "llama-3.3-70b-versatile", "llama-3.1-8b-instant"])
+          )
+        : [model];
 
     let data;
-    if (!response.ok) {
+    let lastFailureDetails = "";
+
+    for (const attemptModel of attemptModels) {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: attemptModel,
+          temperature: 0.2,
+          messages: messagePayload
+        })
+      });
+
+      if (response.ok) {
+        data = await response.json();
+        break;
+      }
+
       const details = await response.text();
+      lastFailureDetails = details;
 
-      // Auto-retry once on Groq model decommission errors.
-      if (
+      const isRetriableGroqModelError =
         provider === "groq" &&
-        model !== groqFallbackModel &&
-        /model_decommissioned/i.test(details)
-      ) {
-        const retryResponse = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: groqFallbackModel,
-            temperature: 0.2,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are Gemora Kop. You only answer questions about Gemora/Talmud and related classic mefarshim. If the user asks anything else, refuse briefly and ask for a Gemora question."
-              },
-              {
-                role: "system",
-                content: likelyGemora
-                  ? "The user message is likely Gemora-related. Answer directly and clearly."
-                  : "The user message may be off-topic. If it is not Gemora-related, refuse briefly."
-              },
-              {
-                role: "user",
-                content: message
-              }
-            ]
-          })
-        });
+        /model_decommissioned|model_not_found|does not exist/i.test(details);
 
-        if (!retryResponse.ok) {
-          const retryDetails = await retryResponse.text();
-          return {
-            status: 502,
-            body: { error: "Model request failed.", details: retryDetails }
-          };
-        }
-
-        data = await retryResponse.json();
-      } else {
+      if (!isRetriableGroqModelError) {
         return {
           status: 502,
           body: { error: "Model request failed.", details }
         };
       }
-    } else {
-      data = await response.json();
+    }
+
+    if (!data) {
+      return {
+        status: 502,
+        body: { error: "Model request failed.", details: lastFailureDetails }
+      };
     }
 
     const reply =
