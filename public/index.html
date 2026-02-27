@@ -4,31 +4,42 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Gemora Kop</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Assistant:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="app">
-      <h1>Gemora Kop</h1>
-      <p class="subtitle">Ask anything about Gemora.</p>
-
-      <section class="chat-box" id="chatBox" aria-live="polite">
-        <div class="msg bot">
-          Shalom. Ask me a Gemora question and I will answer through Grok.
-        </div>
+    <main class="app-shell">
+      <section class="brand-panel">
+        <p class="brand-kicker">Digital Beit Midrash</p>
+        <h1>Gemora Kop</h1>
+        <p class="subtitle">Ask Gemora questions and learn sugya clearly.</p>
       </section>
 
-      <form id="chatForm" class="chat-form">
-        <input
-          id="messageInput"
-          name="message"
-          type="text"
-          placeholder="Example: Explain Rashi on Berakhot 2a..."
-          autocomplete="off"
-          required
-        />
-        <button type="submit">Ask Gemora Kop</button>
-      </form>
-      <p id="status" class="status"></p>
+      <section class="chat-panel">
+        <section class="chat-box" id="chatBox" aria-live="polite">
+          <div class="msg bot">
+            Welcome. Send your first Gemora question when you are ready.
+          </div>
+        </section>
+
+        <form id="chatForm" class="chat-form">
+          <input
+            id="messageInput"
+            name="message"
+            type="text"
+            placeholder="Example: Explain Rashi on Berakhot 2a..."
+            autocomplete="off"
+            required
+          />
+          <button type="submit">Send</button>
+        </form>
+        <p id="status" class="status"></p>
+      </section>
     </main>
 
     <script src="/script.js"></script>

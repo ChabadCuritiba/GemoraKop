@@ -2,6 +2,9 @@ const chatForm = document.getElementById("chatForm");
 const messageInput = document.getElementById("messageInput");
 const chatBox = document.getElementById("chatBox");
 const statusText = document.getElementById("status");
+const submitButton = chatForm.querySelector("button[type='submit']");
+
+let isSubmitting = false;
 
 function appendMessage(text, role) {
   const div = document.createElement("div");
@@ -13,9 +16,13 @@ function appendMessage(text, role) {
 
 chatForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (isSubmitting) return;
+
   const message = messageInput.value.trim();
   if (!message) return;
 
+  isSubmitting = true;
+  submitButton.disabled = true;
   appendMessage(message, "user");
   messageInput.value = "";
   statusText.textContent = "Thinking...";
@@ -30,14 +37,19 @@ chatForm.addEventListener("submit", async (event) => {
     const data = await response.json();
     if (!response.ok) {
       appendMessage(data.error || "Request failed.", "bot");
-      statusText.textContent = "";
       return;
     }
 
     appendMessage(data.reply, "bot");
-    statusText.textContent = "";
   } catch (error) {
-    appendMessage("Network error. Please try again.", "bot");
+    appendMessage(
+      "Network error: could not reach the chat server. If deployed, make sure your backend (with /api/chat) is running on the same domain.",
+      "bot"
+    );
+  } finally {
     statusText.textContent = "";
+    submitButton.disabled = false;
+    isSubmitting = false;
+    messageInput.focus();
   }
 });
