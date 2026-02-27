@@ -1,5 +1,7 @@
 const GEMORA_KEYWORDS = [
   "gemora",
+  "gemoro",
+  "gemor",
   "gemara",
   "talmud",
   "mishnah",
@@ -45,7 +47,12 @@ const GEMORA_KEYWORDS = [
 
 function isGemoraQuestion(text) {
   const input = String(text || "").toLowerCase();
-  return GEMORA_KEYWORDS.some((keyword) => input.includes(keyword));
+  if (GEMORA_KEYWORDS.some((keyword) => input.includes(keyword))) {
+    return true;
+  }
+
+  // Allow common typos/transliterations like "gemoro"/"gmara".
+  return /g[ea]m[oa]r?a?/.test(input);
 }
 
 export async function generateGemoraReply(userMessage) {
@@ -54,12 +61,7 @@ export async function generateGemoraReply(userMessage) {
     return { status: 400, body: { error: "Message is required." } };
   }
 
-  if (!isGemoraQuestion(message)) {
-    return {
-      status: 400,
-      body: { error: "Gemora Kop only answers Gemora-related questions." }
-    };
-  }
+  const likelyGemora = isGemoraQuestion(message);
 
   const grokApiKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY;
   const grokModel =
@@ -87,6 +89,12 @@ export async function generateGemoraReply(userMessage) {
             role: "system",
             content:
               "You are Gemora Kop. You only answer questions about Gemora/Talmud and related classic mefarshim. If the user asks anything else, refuse briefly and ask for a Gemora question."
+          },
+          {
+            role: "system",
+            content: likelyGemora
+              ? "The user message is likely Gemora-related. Answer directly and clearly."
+              : "The user message may be off-topic. If it is not Gemora-related, refuse briefly."
           },
           {
             role: "user",
