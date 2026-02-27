@@ -36,7 +36,11 @@ chatForm.addEventListener("submit", async (event) => {
 
     const data = await response.json();
     if (!response.ok) {
-      appendMessage(data.error || "Request failed.", "bot");
+      const detailText =
+        typeof data.details === "string" && data.details.trim()
+          ? `\n${data.details.trim()}`
+          : "";
+      appendMessage(`${data.error || "Request failed."}${detailText}`, "bot");
       return;
     }
 

@@ -63,16 +63,12 @@ export async function generateGemoraReply(userMessage) {
 
   const likelyGemora = isGemoraQuestion(message);
 
-  const grokApiKey =
-    process.env.GROK_API_KEY ||
-    process.env.GROQ_API_KEY ||
-    process.env.XAI_API_KEY;
-  const grokModel =
-    process.env.GROK_MODEL || process.env.XAI_MODEL || "grok-3-mini";
+  const hasGrokKey = Boolean(process.env.GROK_API_KEY || process.env.XAI_API_KEY);
+  const hasGroqKey = Boolean(process.env.GROQ_API_KEY);
 
-  if (!grokApiKey) {
+  if (!hasGrokKey && !hasGroqKey) {
     return {
-        status: 500,
+      status: 500,
       body: {
         error:
           "Missing API key. Add GROK_API_KEY (or GROQ_API_KEY) to your environment."
@@ -80,15 +76,28 @@ export async function generateGemoraReply(userMessage) {
     };
   }
 
+  const provider = hasGrokKey ? "grok" : "groq";
+  const apiKey = hasGrokKey
+    ? process.env.GROK_API_KEY || process.env.XAI_API_KEY
+    : process.env.GROQ_API_KEY;
+  const endpoint =
+    provider === "grok"
+      ? "https://api.x.ai/v1/chat/completions"
+      : "https://api.groq.com/openai/v1/chat/completions";
+  const model =
+    provider === "grok"
+      ? process.env.GROK_MODEL || process.env.XAI_MODEL || "grok-3-mini"
+      : process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+
   try {
-    const response = await fetch("https://api.x.ai/v1/chat/completions", {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${grokApiKey}`
+        Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: grokModel,
+        model,
         temperature: 0.2,
         messages: [
           {
@@ -114,7 +123,7 @@ export async function generateGemoraReply(userMessage) {
       const details = await response.text();
       return {
         status: 502,
-        body: { error: "Grok request failed.", details }
+        body: { error: "Model request failed.", details }
       };
     }
 
