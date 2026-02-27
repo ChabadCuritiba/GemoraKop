@@ -65,6 +65,9 @@ export async function generateGemoraReply(userMessage) {
 
   const hasGrokKey = Boolean(process.env.GROK_API_KEY || process.env.XAI_API_KEY);
   const hasGroqKey = Boolean(process.env.GROQ_API_KEY);
+  const preferredProvider = String(process.env.LLM_PROVIDER || "")
+    .trim()
+    .toLowerCase();
 
   if (!hasGrokKey && !hasGroqKey) {
     return {
@@ -76,10 +79,20 @@ export async function generateGemoraReply(userMessage) {
     };
   }
 
-  const provider = hasGrokKey ? "grok" : "groq";
-  const apiKey = hasGrokKey
-    ? process.env.GROK_API_KEY || process.env.XAI_API_KEY
-    : process.env.GROQ_API_KEY;
+  let provider;
+  if (preferredProvider === "groq") {
+    provider = hasGroqKey ? "groq" : "grok";
+  } else if (preferredProvider === "grok" || preferredProvider === "xai") {
+    provider = hasGrokKey ? "grok" : "groq";
+  } else {
+    // Default to Llama on Groq when available.
+    provider = hasGroqKey ? "groq" : "grok";
+  }
+
+  const apiKey =
+    provider === "grok"
+      ? process.env.GROK_API_KEY || process.env.XAI_API_KEY
+      : process.env.GROQ_API_KEY;
   const endpoint =
     provider === "grok"
       ? "https://api.x.ai/v1/chat/completions"
@@ -87,7 +100,7 @@ export async function generateGemoraReply(userMessage) {
   const model =
     provider === "grok"
       ? process.env.GROK_MODEL || process.env.XAI_MODEL || "grok-3-mini"
-      : process.env.GROQ_MODEL || "llama-3.1-8b-instant";
+      : process.env.GROQ_MODEL || "llama-3.1-70b-versatile";
 
   try {
     const response = await fetch(endpoint, {
