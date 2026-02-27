@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gemora Kop</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <h1>Gemora Kop</h1>
+      <p class="subtitle">Ask anything about Gemora.</p>
+
+      <section class="chat-box" id="chatBox" aria-live="polite">
+        <div class="msg bot">
+          Shalom. Ask me a Gemora question and I will answer through Grok.
+        </div>
+      </section>
+
+      <form id="chatForm" class="chat-form">
+        <input
+          id="messageInput"
+          name="message"
+          type="text"
+          placeholder="Example: Explain Rashi on Berakhot 2a..."
+          autocomplete="off"
+          required
+        />
+        <button type="submit">Ask Gemora Kop</button>
+      </form>
+      <p id="status" class="status"></p>
+    </main>
+
+    <script src="/script.js"></script>
+  </body>
+</html>
