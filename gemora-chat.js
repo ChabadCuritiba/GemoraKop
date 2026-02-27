@@ -63,14 +63,20 @@ export async function generateGemoraReply(userMessage) {
 
   const likelyGemora = isGemoraQuestion(message);
 
-  const grokApiKey = process.env.GROK_API_KEY || process.env.XAI_API_KEY;
+  const grokApiKey =
+    process.env.GROK_API_KEY ||
+    process.env.GROQ_API_KEY ||
+    process.env.XAI_API_KEY;
   const grokModel =
     process.env.GROK_MODEL || process.env.XAI_MODEL || "grok-3-mini";
 
   if (!grokApiKey) {
     return {
-      status: 500,
-      body: { error: "Missing GROK_API_KEY. Add it to your environment." }
+        status: 500,
+      body: {
+        error:
+          "Missing API key. Add GROK_API_KEY (or GROQ_API_KEY) to your environment."
+      }
     };
   }
 
